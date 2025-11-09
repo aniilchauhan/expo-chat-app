@@ -33,7 +33,7 @@ export type RootStackParamList = {
   Reset: undefined;
   UserSearch: undefined;
   ChatMediaGallery: { chatId: string };
-  Call: { chatId?: string; userId?: string; isVideoCall?: boolean } | undefined;
+  Call: { receiverId?: string; type?: 'voice' | 'video'; chatId?: string };
   GroupCreate: undefined;
   GroupSettings: { chatId: string };
 };
