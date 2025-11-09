@@ -12,6 +12,7 @@ import { TextInput, Button, Card, Title, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../contexts/ThemeContext';
 
 const LoginScreen: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
@@ -19,6 +20,7 @@ const LoginScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
 
   const getIdentifierType = (value: string): string => {
     if (value.includes('@')) return 'email';
@@ -59,15 +61,15 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
         <View style={styles.content}>
-          <Title style={styles.title}>Welcome Back</Title>
+          <Title style={[styles.title, { color: colors.text }]}>Welcome Back</Title>
           
-          <Card style={styles.card}>
+          <Card style={[styles.card, { backgroundColor: colors.surface }]}>
             <Card.Content>
               <TextInput
                 label="Email / Phone / User ID"
@@ -100,7 +102,7 @@ const LoginScreen: React.FC = () => {
                 onPress={() => navigation.navigate('Forgot')}
                 style={styles.forgotLink}
               >
-                <Text style={styles.forgotText}>Forgot password?</Text>
+                <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
               </TouchableOpacity>
             </Card.Content>
           </Card>
@@ -113,7 +115,6 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -145,7 +146,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   forgotText: {
-    color: '#2196f3',
     fontWeight: '600',
   },
 });

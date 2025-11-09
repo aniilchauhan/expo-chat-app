@@ -4,6 +4,7 @@ import { Appbar, Avatar, Searchbar, List, Divider, Button } from 'react-native-p
 import * as Contacts from 'expo-contacts';
 import { usersAPI, chatsAPI } from '../api';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Contact {
   id: string;
@@ -16,6 +17,7 @@ interface Contact {
 
 const ContactsScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [suggestedContacts, setSuggestedContacts] = useState<Contact[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,12 +101,12 @@ const ContactsScreen: React.FC = () => {
 
       if (data.length > 0) {
         const formattedContacts = data
-          .filter(contact => contact.name && (contact.phoneNumbers?.length || contact.emails?.length))
+          .filter(contact => contact.id && contact.name && (contact.phoneNumbers?.length || contact.emails?.length))
           .map(contact => ({
-            id: contact.id,
+            id: contact.id!,
             name: contact.name || 'Unknown',
-            phoneNumbers: contact.phoneNumbers?.map(p => p.number) || [],
-            emails: contact.emails?.map(e => e.email) || [],
+            phoneNumbers: contact.phoneNumbers?.map(p => p.number).filter((n): n is string => !!n) || [],
+            emails: contact.emails?.map(e => e.email).filter((e): e is string => !!e) || [],
             isAppUser: false,
           }));
 
@@ -129,24 +131,26 @@ const ContactsScreen: React.FC = () => {
       
       for (const contact of deviceContacts) {
         // Search by phone number
-        for (const phone of contact.phoneNumbers) {
-          try {
-            const users = await usersAPI.searchUsers(phone);
-            if (users && users.length > 0) {
-              appUsers.push({
-                ...contact,
-                isAppUser: true,
-                userId: users[0]._id || users[0].id,
-              });
-              break;
+        if (contact.phoneNumbers) {
+          for (const phone of contact.phoneNumbers) {
+            try {
+              const users = await usersAPI.searchUsers(phone);
+              if (users && users.length > 0) {
+                appUsers.push({
+                  ...contact,
+                  isAppUser: true,
+                  userId: users[0]._id || users[0].id,
+                });
+                break;
+              }
+            } catch (error) {
+              // Continue to next contact
             }
-          } catch (error) {
-            // Continue to next contact
           }
         }
 
         // Search by email if no phone match found
-        if (!contact.isAppUser) {
+        if (!contact.isAppUser && contact.emails) {
           for (const email of contact.emails) {
             try {
               const users = await usersAPI.searchUsers(email);
@@ -218,11 +222,14 @@ const ContactsScreen: React.FC = () => {
     <List.Item
       title={item.name}
       description={item.phoneNumbers?.[0] || item.emails?.[0] || 'No contact info'}
+      titleStyle={{ color: colors.text }}
+      descriptionStyle={{ color: colors.textSecondary }}
       left={(props) => (
         <Avatar.Text 
           {...props} 
           size={40} 
           label={item.name.charAt(0).toUpperCase()} 
+          style={{ backgroundColor: colors.primary }}
         />
       )}
       right={(props) => (
@@ -232,6 +239,8 @@ const ContactsScreen: React.FC = () => {
               mode="contained" 
               onPress={() => startChat(item)}
               style={styles.chatButton}
+              buttonColor={colors.primary}
+              textColor="#fff"
             >
               Chat
             </Button>
@@ -240,6 +249,7 @@ const ContactsScreen: React.FC = () => {
               mode="outlined" 
               onPress={() => inviteContact(item)}
               style={styles.inviteButton}
+              textColor={colors.primary}
             >
               Invite
             </Button>
@@ -253,12 +263,14 @@ const ContactsScreen: React.FC = () => {
     <List.Item
       title={item.name}
       description="Suggested contact"
+      titleStyle={{ color: colors.text }}
+      descriptionStyle={{ color: colors.textSecondary }}
       left={(props) => (
         <Avatar.Text 
           {...props} 
           size={40} 
           label={item.name.charAt(0).toUpperCase()} 
-          style={styles.suggestedAvatar}
+          style={[styles.suggestedAvatar, { backgroundColor: colors.success }]}
         />
       )}
       right={(props) => (
@@ -266,6 +278,8 @@ const ContactsScreen: React.FC = () => {
           mode="contained" 
           onPress={() => startChat(item)}
           style={styles.chatButton}
+          buttonColor={colors.primary}
+          textColor="#fff"
         >
           Start Chat
         </Button>
@@ -274,23 +288,26 @@ const ContactsScreen: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.Content title="Contacts" />
-        <Appbar.Action icon="account-plus" onPress={() => navigation.navigate('UserSearch')} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Appbar.Header style={{ backgroundColor: colors.surface }}>
+        <Appbar.Content title="Contacts" titleStyle={{ color: colors.text }} />
+        <Appbar.Action icon="account-plus" onPress={() => (navigation as any).navigate('UserSearch')} color={colors.text} />
       </Appbar.Header>
 
       <Searchbar
         placeholder="Search contacts"
         onChangeText={setSearchQuery}
         value={searchQuery}
-        style={styles.searchbar}
+        style={[styles.searchbar, { backgroundColor: colors.surface }]}
+        iconColor={colors.textSecondary}
+        placeholderTextColor={colors.textSecondary}
+        inputStyle={{ color: colors.text }}
       />
 
       {!hasPermission ? (
         <View style={styles.permissionContainer}>
-          <Text style={styles.permissionTitle}>Find Friends</Text>
-          <Text style={styles.permissionText}>
+          <Text style={[styles.permissionTitle, { color: colors.text }]}>Find Friends</Text>
+          <Text style={[styles.permissionText, { color: colors.textSecondary }]}>
             Contact sync is not available in Expo Go.{'\n'}
             Use User Search to find friends instead!
           </Text>
@@ -299,6 +316,8 @@ const ContactsScreen: React.FC = () => {
             onPress={() => (navigation as any).navigate('UserSearch')}
             style={styles.searchButton}
             icon="magnify"
+            buttonColor={colors.primary}
+            textColor="#fff"
           >
             Search Users
           </Button>
@@ -306,6 +325,7 @@ const ContactsScreen: React.FC = () => {
             mode="outlined" 
             onPress={checkPermissions}
             style={styles.tryAgainButton}
+            textColor={colors.primary}
           >
             Try Contact Sync Anyway
           </Button>
@@ -313,8 +333,8 @@ const ContactsScreen: React.FC = () => {
       ) : (
         <>
           {suggestedContacts.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Suggested Contacts</Text>
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Suggested Contacts</Text>
               <FlatList
                 data={suggestedContacts}
                 renderItem={renderSuggestedContact}
@@ -324,16 +344,16 @@ const ContactsScreen: React.FC = () => {
             </View>
           )}
 
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Device Contacts</Text>
-              <Text style={styles.contactCount}>{contacts.length} contacts</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Device Contacts</Text>
+              <Text style={[styles.contactCount, { color: colors.textSecondary }]}>{contacts.length} contacts</Text>
             </View>
             <FlatList
               data={contacts}
               renderItem={renderContactItem}
               keyExtractor={(item) => item.id}
-              ItemSeparatorComponent={() => <Divider />}
+              ItemSeparatorComponent={() => <Divider style={{ backgroundColor: colors.border }} />}
             />
           </View>
         </>
@@ -343,7 +363,7 @@ const ContactsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1 },
   searchbar: { margin: 10 },
   permissionContainer: { 
     flex: 1, 
@@ -354,14 +374,12 @@ const styles = StyleSheet.create({
   permissionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333'
+    marginBottom: 12
   },
   permissionText: { 
     textAlign: 'center', 
     marginBottom: 24, 
-    fontSize: 16, 
-    color: '#666',
+    fontSize: 16,
     lineHeight: 24
   },
   searchButton: {
@@ -371,7 +389,7 @@ const styles = StyleSheet.create({
   tryAgainButton: {
     paddingHorizontal: 24
   },
-  section: { backgroundColor: '#fff', marginBottom: 10 },
+  section: { marginBottom: 10 },
   sectionHeader: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -381,12 +399,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { 
     fontSize: 16, 
-    fontWeight: '600', 
-    color: '#333' 
+    fontWeight: '600'
   },
   contactCount: { 
-    fontSize: 12, 
-    color: '#666' 
+    fontSize: 12
   },
   contactActions: { 
     flexDirection: 'row', 
@@ -398,9 +414,7 @@ const styles = StyleSheet.create({
   inviteButton: { 
     marginLeft: 8 
   },
-  suggestedAvatar: { 
-    backgroundColor: '#4CAF50' 
-  },
+  suggestedAvatar: {},
 });
 
 export default ContactsScreen;

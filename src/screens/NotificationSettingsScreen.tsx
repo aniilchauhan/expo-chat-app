@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Text, Switch, Button, Divider, ActivityIndicator } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { notificationsAPI } from '../api';
 
 export default function NotificationSettingsScreen() {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState({
@@ -90,24 +92,24 @@ export default function NotificationSettingsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Push Notifications</Text>
-        <Text style={styles.sectionDescription}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Push Notifications</Text>
+        <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
           Manage how you receive push notifications on this device
         </Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Enable Push Notifications</Text>
-            <Text style={styles.settingDescription}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Enable Push Notifications</Text>
+            <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
               Receive notifications for new messages
             </Text>
           </View>
@@ -122,8 +124,8 @@ export default function NotificationSettingsScreen() {
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Sound</Text>
-            <Text style={styles.settingDescription}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Sound</Text>
+            <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
               Play sound for notifications
             </Text>
           </View>
@@ -138,8 +140,8 @@ export default function NotificationSettingsScreen() {
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Message Preview</Text>
-            <Text style={styles.settingDescription}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Message Preview</Text>
+            <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
               Show message content in notifications
             </Text>
           </View>
@@ -151,16 +153,16 @@ export default function NotificationSettingsScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Email Notifications</Text>
-        <Text style={styles.sectionDescription}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Email Notifications</Text>
+        <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
           Manage email notification preferences
         </Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Enable Email Notifications</Text>
-            <Text style={styles.settingDescription}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Enable Email Notifications</Text>
+            <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
               Receive email notifications for important updates
             </Text>
           </View>
@@ -175,8 +177,8 @@ export default function NotificationSettingsScreen() {
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Marketing Emails</Text>
-            <Text style={styles.settingDescription}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Marketing Emails</Text>
+            <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
               Receive promotional and marketing emails
             </Text>
           </View>
@@ -188,7 +190,7 @@ export default function NotificationSettingsScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Button
           mode="outlined"
           onPress={sendTestNotification}
@@ -205,7 +207,6 @@ export default function NotificationSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
@@ -213,7 +214,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   section: {
-    backgroundColor: '#fff',
     marginTop: 20,
     paddingVertical: 10,
   },
@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#666',
     paddingHorizontal: 16,
     paddingBottom: 10,
   },
@@ -248,7 +247,6 @@ const styles = StyleSheet.create({
   },
   settingDescription: {
     fontSize: 14,
-    color: '#666',
   },
   testButton: {
     marginHorizontal: 16,

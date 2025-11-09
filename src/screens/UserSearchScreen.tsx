@@ -4,11 +4,13 @@ import { Appbar, Searchbar, Avatar, Button, SegmentedButtons, Card } from 'react
 import { usersAPI, chatsAPI, findOrCreateChat } from '../api';
 import { User } from '../types';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../contexts/ThemeContext';
 
 type SearchMode = 'general' | 'userId';
 
 const UserSearchScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [searchMode, setSearchMode] = useState<SearchMode>('general');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -77,6 +79,12 @@ const UserSearchScreen: React.FC = () => {
       // Try using the direct import first, fallback to chatsAPI method
       const findOrCreateFunction = findOrCreateChat || chatsAPI.findOrCreateChat;
       const userId = user._id || user.id; // Use _id from MongoDB response
+      
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found');
+        return;
+      }
+      
       const result = await findOrCreateFunction(userId);
       const chat = result.chat || result;
       
@@ -101,6 +109,13 @@ const UserSearchScreen: React.FC = () => {
     try {
       const findOrCreateFunction = findOrCreateChat || chatsAPI.findOrCreateChat;
       const userId = searchResult._id || searchResult.id;
+      
+      if (!userId) {
+        setError('User ID not found');
+        setIsLoading(false);
+        return;
+      }
+      
       const result = await findOrCreateFunction(userId);
       const chat = result.chat || result;
       
@@ -123,6 +138,12 @@ const UserSearchScreen: React.FC = () => {
   const handleBlockUser = async (user: User) => {
     try {
       const userId = user._id || user.id;
+      
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found');
+        return;
+      }
+      
       const response = await usersAPI.blockUser(userId);
       if (response.success) {
         Alert.alert('Success', `${user.firstName} has been blocked`);
@@ -143,20 +164,20 @@ const UserSearchScreen: React.FC = () => {
       : (item.firstName?.charAt(0) || '') + (item.lastName?.charAt(0) || '') || item.username?.charAt(0).toUpperCase() || 'U';
     
     return (
-      <View style={styles.userItem}>
+      <View style={[styles.userItem, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => handleSelectUser(item)} style={styles.userInfo}>
           <Avatar.Text size={40} label={initials} />
           <View style={styles.userDetails}>
-            <Text style={styles.userName}>{displayName}</Text>
-            <Text style={styles.userUsername}>@{item.username || item.userId}</Text>
+            <Text style={[styles.userName, { color: colors.text }]}>{displayName}</Text>
+            <Text style={[styles.userUsername, { color: colors.textSecondary }]}>@{item.username || item.userId}</Text>
           </View>
-          {item.isOnline && <View style={styles.onlineDot} />}
+          {item.isOnline && <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />}
         </TouchableOpacity>
         <Button 
           mode="outlined" 
           onPress={() => handleBlockUser(item)}
           style={styles.blockButton}
-          textColor="#e53935"
+          textColor={colors.error}
         >
           Block
         </Button>
@@ -173,7 +194,7 @@ const UserSearchScreen: React.FC = () => {
       : (searchResult.firstName?.charAt(0) || '') + (searchResult.lastName?.charAt(0) || '') || searchResult.username?.charAt(0).toUpperCase() || 'U';
 
     return (
-      <Card style={styles.resultCard}>
+      <Card style={[styles.resultCard, { backgroundColor: colors.surface }]}>
         <Card.Content>
           <View style={styles.resultHeader}>
             <Avatar.Text 
@@ -181,17 +202,17 @@ const UserSearchScreen: React.FC = () => {
               label={initials} 
             />
             <View style={styles.resultInfo}>
-              <Text style={styles.resultName}>
+              <Text style={[styles.resultName, { color: colors.text }]}>
                 {displayName}
               </Text>
-              <Text style={styles.resultUsername}>@{searchResult.username || searchResult.userId}</Text>
+              <Text style={[styles.resultUsername, { color: colors.textSecondary }]}>@{searchResult.username || searchResult.userId}</Text>
               {searchResult.statusMessage && (
-                <Text style={styles.resultStatus}>{searchResult.statusMessage}</Text>
+                <Text style={[styles.resultStatus, { color: colors.textSecondary }]}>{searchResult.statusMessage}</Text>
               )}
               {searchResult.isOnline && (
                 <View style={styles.onlineIndicator}>
-                  <View style={styles.onlineDotLarge} />
-                  <Text style={styles.onlineText}>Online</Text>
+                  <View style={[styles.onlineDotLarge, { backgroundColor: colors.success }]} />
+                  <Text style={[styles.onlineText, { color: colors.success }]}>Online</Text>
                 </View>
               )}
             </View>
@@ -211,7 +232,7 @@ const UserSearchScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Appbar.Header>
@@ -245,17 +266,17 @@ const UserSearchScreen: React.FC = () => {
               style={styles.searchbar}
             />
             {isLoading ? (
-              <ActivityIndicator style={styles.loader} />
+              <ActivityIndicator style={styles.loader} color={colors.primary} />
             ) : (
               <FlatList
                 data={searchResults}
-                keyExtractor={(item) => item._id || item.id}
+                keyExtractor={(item, index) => item._id || item.id || `user-${index}`}
                 renderItem={renderUserItem}
                 ListEmptyComponent={
                   searchQuery.trim().length > 2 ? (
-                    <Text style={styles.emptyText}>No users found</Text>
+                    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No users found</Text>
                   ) : (
-                    <Text style={styles.emptyText}>Enter at least 3 characters to search</Text>
+                    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Enter at least 3 characters to search</Text>
                   )
                 }
               />
@@ -282,9 +303,9 @@ const UserSearchScreen: React.FC = () => {
             </View>
 
             {error && (
-              <Card style={styles.errorCard}>
+              <Card style={[styles.errorCard, { backgroundColor: colors.surface }]}>
                 <Card.Content>
-                  <Text style={styles.errorText}>{error}</Text>
+                  <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
                 </Card.Content>
               </Card>
             )}
@@ -292,7 +313,7 @@ const UserSearchScreen: React.FC = () => {
             {renderSearchResult()}
 
             {!searchResult && !error && !isLoading && (
-              <Text style={styles.helpText}>
+              <Text style={[styles.helpText, { color: colors.textSecondary }]}>
                 Enter a User ID to find and connect with other users
               </Text>
             )}
@@ -331,7 +352,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     justifyContent: 'space-between',
   },
   userInfo: {
@@ -349,32 +369,26 @@ const styles = StyleSheet.create({
   },
   userUsername: {
     fontSize: 14,
-    color: '#666',
     marginTop: 2,
   },
   blockButton: {
-    borderColor: '#e53935',
     marginLeft: 10,
   },
   onlineDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#4caf50',
     marginLeft: 8,
   },
   emptyText: {
     textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
-    color: '#666',
   },
   errorCard: {
     margin: 10,
-    backgroundColor: '#ffebee',
   },
   errorText: {
-    color: '#c62828',
     fontSize: 14,
   },
   resultCard: {
@@ -395,12 +409,10 @@ const styles = StyleSheet.create({
   },
   resultUsername: {
     fontSize: 14,
-    color: '#666',
     marginTop: 2,
   },
   resultStatus: {
     fontSize: 12,
-    color: '#999',
     marginTop: 4,
   },
   onlineIndicator: {
@@ -412,12 +424,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#4caf50',
     marginRight: 6,
   },
   onlineText: {
     fontSize: 12,
-    color: '#4caf50',
   },
   startChatButton: {
     marginTop: 10,
@@ -426,7 +436,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 30,
     fontSize: 14,
-    color: '#999',
     paddingHorizontal: 20,
   },
 });

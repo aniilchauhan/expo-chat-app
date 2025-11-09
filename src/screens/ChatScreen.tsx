@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appbar, Avatar, Menu, Divider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { chatsAPI, messagesAPI, usersAPI, reactionsAPI, threadsAPI, announcementsAPI, voiceMessagesAPI } from '../api';
 import { Chat, Message, User, Reaction, Thread, Announcement, VoiceMessage } from '../types';
 import { MessageReactions } from '../components/chat/MessageReactions';
@@ -48,6 +49,7 @@ interface ChatScreenProps {
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const route = useRoute<ChatScreenRouteProp>();
   const { chatId } = route.params;
 
@@ -214,7 +216,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
     const loadChatDetails = async () => {
     setIsLoading(true);
     try {
-      const chatDetails = await chatsAPI.getChatById(chatId);
+      const response = await chatsAPI.getChatById(chatId);
+      const chatDetails = response.chat || response;
+      console.log('🔍 Setting chat details:', chatDetails);
       setChat(chatDetails);
       const messageData = await messagesAPI.getChatMessages(chatId);
       setMessages(messageData.messages || messageData);
@@ -317,7 +321,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
         console.log('🔍 Frontend: User.id:', user?.id);
       
         // Get senderId from user object or AsyncStorage as fallback
-        let senderId = user?._id || user?.id;
+        let senderId: string | undefined | null = user?._id || user?.id;
         
         if (!senderId) {
           const storedUserId = await AsyncStorage.getItem('userId');
@@ -533,6 +537,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
     }
 
     try {
+      const senderId = user?._id || user?.id;
+      if (!senderId) {
+        Alert.alert('Error', 'User ID not found. Please log in again.');
+        return;
+      }
+
       let location = await Location.getCurrentPositionAsync({});
       const locationMessage = {
         messageType: 'location',
@@ -540,7 +550,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
         }),
-        senderId: user?._id || user?.id,
+        senderId,
       };
 
                   const data = await messagesAPI.sendMessage(chatId, locationMessage);
@@ -594,6 +604,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
     
     if (uri && chatId && user) {
       try {
+        const senderId = user._id || user.id;
+        if (!senderId) {
+          Alert.alert('Error', 'User ID not found. Please log in again.');
+          setRecording(null);
+          return;
+        }
+
         // Upload audio and send the URL
         const file: any = { uri, name: 'voice-message.m4a', type: 'audio/m4a' };
         const upload = await (await import('../api')).uploadAPI.uploadChatMedia(file, chatId);
@@ -602,7 +619,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
         const audioMessage = {
           messageType: 'audio',
           content: audioUrl,
-          senderId: user._id || user.id,
+          senderId,
         } as any;
 
         const data = await messagesAPI.sendMessage(chatId, audioMessage);
@@ -671,6 +688,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
       const asset = result.assets[0];
       const messageType = asset.type === 'video' ? 'video' : 'image';
       try {
+        const senderId = user._id || user.id;
+        if (!senderId) {
+          Alert.alert('Error', 'User ID not found. Please log in again.');
+          return;
+        }
+
         const file: any = { uri: asset.uri, name: `upload.${messageType === 'video' ? 'mp4' : 'jpg'}`, type: messageType === 'video' ? 'video/mp4' : 'image/jpeg' };
         const upload = await (await import('../api')).uploadAPI.uploadChatMedia(file, chatId);
         const url = upload.url || upload.fileUrl || upload.path || asset.uri;
@@ -678,7 +701,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
         const mediaMessage = {
           messageType,
           content: url,
-          senderId: user._id || user.id,
+          senderId,
         } as any;
 
         const data = await messagesAPI.sendMessage(chatId, mediaMessage);
@@ -708,13 +731,19 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
     try {
       const contact = await Contacts.presentContactPickerAsync();
       if (contact) {
+        const senderId = user._id || user.id;
+        if (!senderId) {
+          Alert.alert('Error', 'User ID not found. Please log in again.');
+          return;
+        }
+
         const contactMessage = {
           messageType: 'contact',
           content: JSON.stringify({
             name: contact.name,
             phoneNumber: contact.phoneNumbers ? contact.phoneNumbers[0].number : '',
           }),
-          senderId: user._id || user.id,
+          senderId,
         };
 
                         const data = await messagesAPI.sendMessage(chatId, contactMessage);
@@ -782,34 +811,50 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
   };
 
   const renderMessageContent = (item: Message) => {
+    const isOwn = item.sender._id === (user?._id || user?.id);
+    const bubbleColor = isOwn ? colors.primary : colors.surface;
+    const textColor = isOwn ? '#fff' : colors.text;
+    
     switch (item.messageType) {
       case 'location':
         try {
           const { latitude, longitude } = JSON.parse(item.content);
           return (
-            <TouchableOpacity onPress={() => {}} style={styles.locationContainer}>
-              <Ionicons name="location-sharp" size={24} color="#007AFF" />
-              <Text style={styles.locationText}>Location Shared</Text>
-              <Text style={styles.locationCoords}>Lat: {latitude.toFixed(4)}, Lon: {longitude.toFixed(4)}</Text>
-            </TouchableOpacity>
+            <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+              <TouchableOpacity onPress={() => {}} style={styles.locationContainer}>
+                <Ionicons name="location-sharp" size={24} color={colors.primary} />
+                <Text style={[styles.locationText, { color: colors.primary }]}>Location Shared</Text>
+                <Text style={[styles.locationCoords, { color: textColor }]}>Lat: {latitude.toFixed(4)}, Lon: {longitude.toFixed(4)}</Text>
+              </TouchableOpacity>
+            </View>
           );
         } catch (e) {
-          return <Text style={styles.messageText}>Invalid location data</Text>;
+          return (
+            <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+              <Text style={[styles.messageText, { color: textColor }]}>Invalid location data</Text>
+            </View>
+          );
         }
       case 'contact':
         try {
           const contact = JSON.parse(item.content);
           return (
-            <View style={styles.contactContainer}>
-              <Ionicons name="person-circle" size={24} color="#4F8EF7" />
-              <View style={{ marginLeft: 10 }}>
-                <Text style={styles.contactName}>{contact.name}</Text>
-                <Text style={styles.contactPhone}>{contact.phone}</Text>
+            <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+              <View style={styles.contactContainer}>
+                <Ionicons name="person-circle" size={24} color={colors.primary} />
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={[styles.contactName, { color: textColor }]}>{contact.name}</Text>
+                  <Text style={[styles.contactPhone, { color: textColor }]}>{contact.phone}</Text>
+                </View>
               </View>
             </View>
           );
         } catch (e) {
-          return <Text style={styles.messageText}>Invalid contact data</Text>;
+          return (
+            <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+              <Text style={[styles.messageText, { color: textColor }]}>Invalid contact data</Text>
+            </View>
+          );
         }
       case 'audio':
         // Check if this message has a voice message ID for enhanced playback
@@ -830,39 +875,49 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           };
           
           return (
-            <EnhancedVoiceMessagePlayer
-              voiceMessage={mockVoiceMessage}
-              onPlay={() => setPlayingUri(item.content)}
-              onPause={() => setPlayingUri(null)}
-              showTranscription={true}
-            />
+            <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+              <EnhancedVoiceMessagePlayer
+                voiceMessage={mockVoiceMessage}
+                onPlay={() => setPlayingUri(item.content)}
+                onPause={() => setPlayingUri(null)}
+                showTranscription={true}
+              />
+            </View>
           );
         } else {
           // Fallback to simple audio player for legacy messages
           return (
-            <TouchableOpacity onPress={() => playSound(item.content)} style={styles.audioMessageContainer}>
-              <Ionicons name={playingUri === item.content ? 'stop-circle' : 'play-circle'} size={32} color="#007AFF" />
-              <Text style={styles.audioText}>Voice Message</Text>
-            </TouchableOpacity>
+            <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+              <TouchableOpacity onPress={() => playSound(item.content)} style={styles.audioMessageContainer}>
+                <Ionicons name={playingUri === item.content ? 'stop-circle' : 'play-circle'} size={32} color={colors.primary} />
+                <Text style={[styles.audioText, { color: textColor }]}>Voice Message</Text>
+              </TouchableOpacity>
+            </View>
           );
         }
       case 'video':
         return (
-          <View style={styles.videoContainer}>
-            <Video
-              source={{ uri: item.content }}
-              rate={1.0}
-              volume={1.0}
-              isMuted={false}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={false}
-              useNativeControls
-              style={styles.videoPlayer}
-            />
+          <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+            <View style={styles.videoContainer}>
+              <Video
+                source={{ uri: item.content }}
+                rate={1.0}
+                volume={1.0}
+                isMuted={false}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={false}
+                useNativeControls
+                style={styles.videoPlayer}
+              />
+            </View>
           </View>
         );
       default:
-        return <Text style={styles.messageText}>{item.content}</Text>;
+        return (
+          <View style={[styles.messageBubble, { backgroundColor: bubbleColor }]}>
+            <Text style={[styles.messageText, { color: textColor }]}>{item.content}</Text>
+          </View>
+        );
     }
   };
 
@@ -886,12 +941,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
       >
         {item.replyTo && (
           <View style={styles.replyIndicator}>
-            <View style={styles.replyLine} />
+            <View style={[styles.replyLine, { backgroundColor: colors.primary }]} />
             <View style={styles.replyContent}>
-              <Text style={styles.replyAuthor}>
+              <Text style={[styles.replyAuthor, { color: colors.primary }]}>
                 {item.replyTo.sender?.firstName || 'User'}
               </Text>
-              <Text style={styles.replyMessage} numberOfLines={2}>
+              <Text style={[styles.replyMessage, { color: colors.textSecondary }]} numberOfLines={2}>
                 {item.replyTo.content}
               </Text>
             </View>
@@ -909,11 +964,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           
           {item.threadInfo && item.threadInfo.replyCount > 0 && (
             <TouchableOpacity 
-              style={styles.threadIndicator}
+              style={[styles.threadIndicator, { backgroundColor: `${colors.primary}1A` }]}
               onPress={() => handleOpenThread(item)}
             >
-              <Ionicons name="chatbubbles-outline" size={14} color="#007AFF" />
-              <Text style={styles.threadText}>
+              <Ionicons name="chatbubbles-outline" size={14} color={colors.primary} />
+              <Text style={[styles.threadText, { color: colors.primary }]}>
                 {item.threadInfo.replyCount} {item.threadInfo.replyCount === 1 ? 'reply' : 'replies'}
               </Text>
             </TouchableOpacity>
@@ -922,13 +977,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           <View style={styles.messageFooter}>
             <Text style={[
               styles.messageTime,
-              isOwn ? styles.ownMessageText : styles.otherMessageText
+              { color: isOwn ? '#fff' : colors.textSecondary }
             ]}>
               {formatTime(item.createdAt)}
             </Text>
             
             {item.edited && (
-              <Text style={styles.editedLabel}>edited</Text>
+              <Text style={[styles.editedLabel, { color: colors.textSecondary }]}>edited</Text>
             )}
             
             {isOwn && (
@@ -936,12 +991,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
                 <Ionicons 
                   name="checkmark" 
                   size={12} 
-                  color={isRead ? '#007AFF' : '#ccc'} 
+                  color={isRead ? colors.primary : colors.border} 
                 />
                 <Ionicons 
                   name="checkmark" 
                   size={12} 
-                  color={isRead ? '#007AFF' : '#ccc'} 
+                  color={isRead ? colors.primary : colors.border} 
                   style={{ marginLeft: -4 }}
                 />
               </View>
@@ -955,20 +1010,44 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
   
   if (isLoading || !chat) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading chat...</Text>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading chat...</Text>
       </SafeAreaView>
     );
   }
 
   const isPrivate = chat.type === 'private';
+  const currentUserId = user?._id || user?.id;
+  
+  // Debug logging
+  console.log('🔍 Chat Debug:', {
+    chatType: chat.type,
+    currentUserId,
+    participantsCount: chat.participants?.length,
+    participants: chat.participants?.map(p => ({
+      userId: p.userId?._id || p.userId?.id,
+      name: `${p.userId?.firstName} ${p.userId?.lastName}`
+    }))
+  });
+  
   const otherParticipant = isPrivate
-    ? chat.participants?.find(p => p.userId._id !== user?.id)
+    ? chat.participants?.find(p => {
+        const participantId = p.userId?._id || p.userId?.id || p.userId;
+        return participantId !== currentUserId;
+      })
     : null;
 
+  console.log('🔍 Other Participant:', otherParticipant ? {
+    id: otherParticipant.userId?._id || otherParticipant.userId?.id,
+    firstName: otherParticipant.userId?.firstName,
+    lastName: otherParticipant.userId?.lastName
+  } : 'Not found');
+
   const chatName = chat.name ||
-    (otherParticipant ? `${otherParticipant.userId.firstName} ${otherParticipant.userId.lastName}` : 'Private Chat');
+    (otherParticipant 
+      ? `${otherParticipant.userId?.firstName || ''} ${otherParticipant.userId?.lastName || ''}`.trim() || 'User'
+      : 'Private Chat');
 
   const presenceLabel = isPrivate
     ? (otherParticipant?.userId?.isOnline ? 'Online' : `Last seen ${new Date(otherParticipant?.userId?.lastSeen || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
@@ -988,54 +1067,70 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-       <Appbar.Header>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+       <Appbar.Header style={{ backgroundColor: colors.surface }}>
+          <Appbar.BackAction onPress={() => navigation.goBack()} color={colors.text} />
           <Avatar.Text
             size={40}
             label={isPrivate 
               ? (otherParticipant?.userId.firstName?.[0] || '') + (otherParticipant?.userId.lastName?.[0] || '')
               : chat.name?.[0] || 'G'
             }
+            style={{ marginRight: 8 }}
           />
-          <Appbar.Content title={chatName} subtitle={presenceLabel} />
+          <Appbar.Content 
+            title={chatName} 
+            subtitle={presenceLabel}
+            titleStyle={{ fontSize: 16, fontWeight: '600', color: colors.text }}
+          />
           {chat.type === 'group' && (
             <Appbar.Action 
               icon="account-group" 
               onPress={() => setShowMemberManagement(true)}
+              color={colors.text}
             />
           )}
           {chat.type === 'group' && (
             <Appbar.Action 
               icon="link" 
               onPress={() => setShowInviteManagement(true)}
+              color={colors.text}
             />
           )}
           {chat.type === 'group' && (
             <Appbar.Action 
               icon="bell" 
               onPress={() => setShowAnnouncements(true)}
-              iconColor={announcements.length > 0 ? '#FF3B30' : undefined}
+              iconColor={announcements.length > 0 ? colors.error : colors.text}
             />
           )}
           {chat.type === 'group' && (
             <Appbar.Action 
               icon="cog" 
               onPress={() => setShowGroupSettings(true)}
+              color={colors.text}
             />
           )}
-          {isPrivate && otherParticipant && (
-            <Appbar.Action icon="account-remove" onPress={() => handleBlockUser(otherParticipant.userId._id)} />
+          {isPrivate && otherParticipant && otherParticipant.userId?._id && (
+            <Appbar.Action icon="account-remove" onPress={() => {
+              const userId = otherParticipant.userId._id;
+              if (userId) handleBlockUser(userId);
+            }} color={colors.text} />
           )}
-          <Appbar.Action icon="call" onPress={() => navigation.navigate('Call')} />
-          <Appbar.Action icon="image" onPress={() => navigation.navigate('ChatMediaGallery', { chatId })} />
-          {isConnecting && (
-            <ActivityIndicator size="small" color="#007AFF" style={{ marginRight: 16 }} />
-          )}
+          <Appbar.Action 
+            icon="phone" 
+            onPress={() => navigation.navigate('Call')}
+            color={colors.primary}
+          />
+          <Appbar.Action 
+            icon="image" 
+            onPress={() => navigation.navigate('ChatMediaGallery', { chatId })}
+            color={colors.primary}
+          />
         </Appbar.Header>
 
         <KeyboardAvoidingView 
-          style={styles.chatWindow}
+          style={[styles.chatWindow, { backgroundColor: colors.background }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
@@ -1049,20 +1144,20 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
             ListFooterComponent={
               isTyping ? (
                 <View style={styles.typingIndicator}>
-                  <Text style={styles.typingText}>{isTyping}</Text>
+                  <Text style={[styles.typingText, { color: colors.textSecondary }]}>{isTyping}</Text>
                 </View>
               ) : null
             }
           />
 
-          <View style={styles.messageInputContainer}>
+          <View style={[styles.messageInputContainer, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
             {(replyingTo || editingMessage) && (
-              <View style={styles.replyBar}>
+              <View style={[styles.replyBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
                 <View style={styles.replyBarContent}>
-                  <Text style={styles.replyLabel}>
+                  <Text style={[styles.replyLabel, { color: colors.primary }]}>
                     {editingMessage ? 'Edit message' : `Reply to ${replyingTo?.sender?.firstName || 'User'}`}
                   </Text>
-                  <Text style={styles.replyText} numberOfLines={2}>
+                  <Text style={[styles.replyText, { color: colors.textSecondary }]} numberOfLines={2}>
                     {editingMessage ? editingMessage.content : replyingTo?.content}
                   </Text>
                 </View>
@@ -1070,44 +1165,49 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
                   onPress={editingMessage ? cancelEdit : cancelReply}
                   style={styles.cancelButton}
                 >
-                  <Ionicons name="close" size={20} color="#666" />
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             )}
 
             <View style={styles.messageInputRow}>
               <TouchableOpacity style={styles.attachButton} onPress={showAttachmentMenu}>
-                <Ionicons name="add" size={24} color="#007AFF" />
+                <Ionicons name="add" size={24} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.voiceButton} 
                 onPress={() => setShowVoiceRecorder(true)}
               >
-                <Ionicons name="mic" size={24} color="#007AFF" />
+                <Ionicons name="mic" size={24} color={colors.primary} />
               </TouchableOpacity>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { 
+                  borderColor: colors.border, 
+                  backgroundColor: colors.surface,
+                  color: colors.text 
+                }]}
                 value={newMessage}
                 onChangeText={handleTyping}
                 placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 maxLength={1000}
                 textAlignVertical="top"
               />
               {isRecording && (
                 <TouchableOpacity style={styles.recordButton} onPress={stopRecording}>
-                  <Ionicons name="stop-circle" size={24} color="red" />
+                  <Ionicons name="stop-circle" size={24} color={colors.error} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity 
-                style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]} 
+                style={[styles.sendButton, { backgroundColor: newMessage.trim() ? colors.primary : colors.border }]} 
                 onPress={sendMessage}
                 disabled={!newMessage.trim()}
               >
                 <Ionicons 
                   name={editingMessage ? "checkmark" : "send"} 
                   size={20} 
-                  color={!newMessage.trim() ? '#ccc' : '#fff'} 
+                  color="#fff" 
                 />
               </TouchableOpacity>
             </View>
@@ -1193,18 +1293,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
   },
   mainContent: {
     flex: 1,
@@ -1212,9 +1309,7 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: width < 768 ? width : 320,
-    backgroundColor: '#fff',
     borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
   },
   hiddenSidebar: {
     display: 'none',
@@ -1224,7 +1319,6 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1233,7 +1327,6 @@ const styles = StyleSheet.create({
   searchResults: {
     maxHeight: 200,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
   searchResultsTitle: {
     fontSize: 16,
@@ -1257,7 +1350,6 @@ const styles = StyleSheet.create({
   },
   searchResultUsername: {
     fontSize: 14,
-    color: '#666',
   },
   chatsHeader: {
     flexDirection: 'row',
@@ -1266,7 +1358,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
   chatsTitle: {
     fontSize: 18,
@@ -1281,10 +1372,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   selectedChatItem: {
-    backgroundColor: '#e3f2fd',
   },
   chatInfo: {
     marginLeft: 12,
@@ -1297,26 +1386,21 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     fontSize: 14,
-    color: '#666',
   },
   lastMessageTime: {
     fontSize: 12,
-    color: '#999',
     marginLeft: 8,
   },
   chatWindow: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   emptyChatWindow: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
   },
   emptyChatText: {
     fontSize: 16,
-    color: '#666',
     marginTop: 16,
   },
   messagesList: {
@@ -1340,25 +1424,20 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   ownBubble: {
-    backgroundColor: '#007AFF',
   },
   otherBubble: {
-    backgroundColor: '#e0e0e0',
   },
   senderName: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#007AFF',
     marginBottom: 4,
   },
   messageText: {
     fontSize: 16,
   },
   ownMessageText: {
-    color: '#fff',
   },
   otherMessageText: {
-    color: '#000',
   },
   messageTime: {
     fontSize: 12,
@@ -1373,7 +1452,6 @@ const styles = StyleSheet.create({
   },
   editedLabel: {
     fontSize: 10,
-    color: '#666',
     fontStyle: 'italic',
     marginLeft: 8,
   },
@@ -1384,30 +1462,24 @@ const styles = StyleSheet.create({
   },
   messageInputContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    backgroundColor: '#fff',
   },
   replyBar: {
-    backgroundColor: '#f0f0f0',
     paddingHorizontal: 16,
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
   },
   replyBarContent: {
     flex: 1,
   },
   replyLabel: {
     fontSize: 12,
-    color: '#007AFF',
     fontWeight: '500',
     marginBottom: 2,
   },
   replyText: {
     fontSize: 14,
-    color: '#666',
   },
   cancelButton: {
     padding: 8,
@@ -1421,7 +1493,6 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -1432,7 +1503,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   sendButton: {
-    backgroundColor: '#007AFF',
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -1440,7 +1510,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#ccc',
   },
   attachButton: {
     padding: 8,

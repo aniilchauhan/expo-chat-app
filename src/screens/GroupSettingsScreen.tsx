@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, S
 import { RouteProp, useRoute } from '@react-navigation/native';
 import QRCode from 'react-native-qrcode-svg';
 import { chatsAPI, usersAPI } from '../api';
+import { useTheme } from '../contexts/ThemeContext';
 
 const GroupSettingsScreen: React.FC<any> = ({ navigation }) => {
+  const { colors } = useTheme();
   const route = useRoute<RouteProp<{ params: { chatId: string } }, 'params'>>();
   const chatId = (route.params as any)?.chatId;
   const [name, setName] = useState('');
@@ -100,63 +102,81 @@ const GroupSettingsScreen: React.FC<any> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Group Settings</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Group Settings</Text>
 
-      <TextInput style={styles.input} placeholder="Group name" value={name} onChangeText={setName} />
-      <TextInput style={styles.input} placeholder="Description" value={description} onChangeText={setDescription} />
+      <TextInput 
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} 
+        placeholder="Group name" 
+        placeholderTextColor={colors.textSecondary}
+        value={name} 
+        onChangeText={setName} 
+      />
+      <TextInput 
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} 
+        placeholder="Description" 
+        placeholderTextColor={colors.textSecondary}
+        value={description} 
+        onChangeText={setDescription} 
+      />
 
-      <TouchableOpacity style={styles.button} onPress={onSave} disabled={saving}>
+      <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={onSave} disabled={saving}>
         <Text style={styles.buttonText}>{saving ? 'Saving…' : 'Save'}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.section}>Invite Link</Text>
-      <View style={styles.inviteSection}>
-        <Text style={styles.inviteLink}>{inviteLink}</Text>
-        <View style={styles.qrContainer}>
+      <Text style={[styles.section, { color: colors.textSecondary }]}>Invite Link</Text>
+      <View style={[styles.inviteSection, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.inviteLink, { color: colors.textSecondary }]}>{inviteLink}</Text>
+        <View style={[styles.qrContainer, { backgroundColor: colors.background }]}>
           <QRCode value={inviteLink} size={120} />
         </View>
         <View style={styles.inviteButtons}>
-          <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={copyInviteLink}>
-            <Text style={styles.secondaryButtonText}>Copy</Text>
+          <TouchableOpacity style={[styles.button, styles.secondaryButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={copyInviteLink}>
+            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Copy</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={shareInviteLink}>
-            <Text style={styles.secondaryButtonText}>Share</Text>
+          <TouchableOpacity style={[styles.button, styles.secondaryButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={shareInviteLink}>
+            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Share</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <Text style={styles.section}>Members ({members.length})</Text>
+      <Text style={[styles.section, { color: colors.textSecondary }]}>Members ({members.length})</Text>
       <FlatList
         data={members}
         keyExtractor={(item) => item.userId?._id || item.userId}
         renderItem={({ item }) => (
           <View style={styles.memberRow}>
             <View style={styles.memberInfo}>
-              <Text style={styles.memberName}>{item.userId?.username || item.userId?._id || item.userId}</Text>
-              <Text style={styles.memberRole}>{item.role || 'member'}</Text>
+              <Text style={[styles.memberName, { color: colors.text }]}>{item.userId?.username || item.userId?._id || item.userId}</Text>
+              <Text style={[styles.memberRole, { color: colors.textSecondary }]}>{item.role || 'member'}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={() => toggleAdmin(item.userId?._id || item.userId, item.role)}>
-                <Text style={{ color: '#2196f3', marginRight: 16 }}>{item.role === 'admin' ? 'Demote' : 'Promote'}</Text>
+                <Text style={{ color: colors.primary, marginRight: 16 }}>{item.role === 'admin' ? 'Demote' : 'Promote'}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => removeMember(item.userId?._id || item.userId)}>
-                <Text style={{ color: '#e53935' }}>Remove</Text>
+                <Text style={{ color: colors.error }}>Remove</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       />
 
-      <Text style={styles.section}>Add member</Text>
-      <TextInput style={styles.input} placeholder="Search users" value={query} onChangeText={onSearch} />
+      <Text style={[styles.section, { color: colors.textSecondary }]}>Add member</Text>
+      <TextInput 
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} 
+        placeholder="Search users" 
+        placeholderTextColor={colors.textSecondary}
+        value={query} 
+        onChangeText={onSearch} 
+      />
       <FlatList
         data={searchResults}
         keyExtractor={(u) => u._id || u.id}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.memberRow} onPress={() => addMember(item._id || item.id)}>
-            <Text>{item.username || `${item.firstName} ${item.lastName}`}</Text>
-            <Text style={{ color: '#2196f3' }}>Add</Text>
+            <Text style={{ color: colors.text }}>{item.username || `${item.firstName} ${item.lastName}`}</Text>
+            <Text style={{ color: colors.primary }}>Add</Text>
           </TouchableOpacity>
         )}
       />
@@ -165,22 +185,22 @@ const GroupSettingsScreen: React.FC<any> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  container: { flex: 1, padding: 16 },
   title: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10 },
-  button: { backgroundColor: '#2196f3', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 4 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10 },
+  button: { padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 4 },
   buttonText: { color: '#fff', fontWeight: '600' },
-  secondaryButton: { backgroundColor: '#f5f5f5', marginHorizontal: 4 },
-  secondaryButtonText: { color: '#333', fontWeight: '600' },
-  section: { fontSize: 12, color: '#888', marginTop: 16, marginBottom: 8 },
-  inviteSection: { backgroundColor: '#f9f9f9', padding: 12, borderRadius: 8, marginBottom: 16 },
-  inviteLink: { fontSize: 12, color: '#666', marginBottom: 8, fontFamily: 'monospace' },
-  qrContainer: { alignItems: 'center', marginVertical: 12, padding: 16, backgroundColor: '#fff', borderRadius: 8 },
+  secondaryButton: { marginHorizontal: 4, borderWidth: 1 },
+  secondaryButtonText: { fontWeight: '600' },
+  section: { fontSize: 12, marginTop: 16, marginBottom: 8 },
+  inviteSection: { padding: 12, borderRadius: 8, marginBottom: 16 },
+  inviteLink: { fontSize: 12, marginBottom: 8, fontFamily: 'monospace' },
+  qrContainer: { alignItems: 'center', marginVertical: 12, padding: 16, borderRadius: 8 },
   inviteButtons: { flexDirection: 'row', justifyContent: 'space-around' },
   memberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
   memberInfo: { flex: 1 },
   memberName: { fontWeight: '500' },
-  memberRole: { fontSize: 12, color: '#666', marginTop: 2 },
+  memberRole: { fontSize: 12, marginTop: 2 },
 });
 
 export default GroupSettingsScreen;

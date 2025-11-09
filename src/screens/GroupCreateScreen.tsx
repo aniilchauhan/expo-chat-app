@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { chatsAPI, usersAPI } from '../api';
+import { useTheme } from '../contexts/ThemeContext';
 
 const GroupCreateScreen: React.FC<any> = ({ navigation }) => {
+  const { colors } = useTheme();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [membersCsv, setMembersCsv] = useState(''); // comma-separated user IDs for simplicity
@@ -29,12 +31,30 @@ const GroupCreateScreen: React.FC<any> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create Group</Text>
-      <TextInput style={styles.input} placeholder="Group name" value={name} onChangeText={setName} />
-      <TextInput style={styles.input} placeholder="Description (optional)" value={description} onChangeText={setDescription} />
-      <TextInput style={styles.input} placeholder="Member IDs (comma-separated)" value={membersCsv} onChangeText={setMembersCsv} />
-      <TouchableOpacity style={styles.button} onPress={onCreate} disabled={loading}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Create Group</Text>
+      <TextInput 
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} 
+        placeholder="Group name" 
+        placeholderTextColor={colors.textSecondary}
+        value={name} 
+        onChangeText={setName} 
+      />
+      <TextInput 
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} 
+        placeholder="Description (optional)" 
+        placeholderTextColor={colors.textSecondary}
+        value={description} 
+        onChangeText={setDescription} 
+      />
+      <TextInput 
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} 
+        placeholder="Member IDs (comma-separated)" 
+        placeholderTextColor={colors.textSecondary}
+        value={membersCsv} 
+        onChangeText={setMembersCsv} 
+      />
+      <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={onCreate} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Creating…' : 'Create'}</Text>
       </TouchableOpacity>
     </View>
@@ -42,10 +62,10 @@ const GroupCreateScreen: React.FC<any> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  container: { flex: 1, padding: 16 },
   title: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10 },
-  button: { backgroundColor: '#2196f3', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 10 },
+  button: { padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   buttonText: { color: '#fff', fontWeight: '600' },
 });
 
