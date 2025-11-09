@@ -130,6 +130,32 @@ export const usersAPI = {
     return result;
   },
 
+  async searchUserById(userId: string) {
+    console.log('🔍 Frontend: Searching user by ID:', userId);
+    console.log('🔍 Frontend: Search URL:', `${API_BASE_URL}/api/users/search/by-id/${encodeURIComponent(userId)}`);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/search/by-id/${encodeURIComponent(userId)}`, {
+        headers: await getAuthHeaders(),
+      });
+      
+      console.log('🔍 Frontend: Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Network error" }));
+        console.log('🔍 Frontend: Error response:', errorData);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('🔍 Frontend: Search by ID result:', result);
+      return result;
+    } catch (error) {
+      console.log('🔍 Frontend: Search by ID error:', error);
+      throw error;
+    }
+  },
+
   async getSettings() {
     const response = await fetch(`${API_BASE_URL}/api/users/settings`, {
       headers: await getAuthHeaders(),
@@ -149,6 +175,34 @@ export const usersAPI = {
       body: JSON.stringify(settings),
     });
     return handleResponse(response);
+  },
+
+  async updateSearchableStatus(searchable: boolean) {
+    console.log('🔍 Frontend: Updating searchable status to:', searchable);
+    console.log('🔍 Frontend: API URL:', `${API_BASE_URL}/api/users/settings/privacy`);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/settings/privacy`, {
+        method: "PATCH",
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ searchable }),
+      });
+      
+      console.log('🔍 Frontend: Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Network error" }));
+        console.log('🔍 Frontend: Error response:', errorData);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('🔍 Frontend: Update searchable status result:', result);
+      return result;
+    } catch (error) {
+      console.log('🔍 Frontend: Update searchable status error:', error);
+      throw error;
+    }
   },
 
   async getBlockedUsers() {

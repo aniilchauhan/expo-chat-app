@@ -24,10 +24,6 @@
       "package": "com.chatapp.mobile",
       "versionCode": 1,
       "backgroundColor": "#FFFFFF",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
-      },
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",

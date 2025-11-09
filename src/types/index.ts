@@ -1,16 +1,19 @@
 export interface User {
-  _id: string;
-  id: string;
+  _id?: string;
+  id?: string;
   email: string;
-  username: string;
-  firstName: string;
-  lastName: string;
+  username?: string;
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
   avatar?: string;
-  isOnline: boolean;
+  isOnline?: boolean;
   lastSeen?: string;
   status?: string;
-  createdAt: string;
-  updatedAt: string;
+  statusMessage?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Chat {

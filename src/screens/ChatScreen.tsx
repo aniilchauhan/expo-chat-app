@@ -13,6 +13,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appbar, Avatar, Menu, Divider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -315,8 +316,21 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
         console.log('🔍 Frontend: User._id:', user?._id);
         console.log('🔍 Frontend: User.id:', user?.id);
       
-        const senderId = user?._id || user?.id;
+        // Get senderId from user object or AsyncStorage as fallback
+        let senderId = user?._id || user?.id;
+        
+        if (!senderId) {
+          const storedUserId = await AsyncStorage.getItem('userId');
+          senderId = storedUserId;
+          console.log('🔍 Frontend: Using stored userId:', senderId);
+        }
+        
         console.log('🔍 Frontend: Final senderId:', senderId);
+      
+        if (!senderId) {
+          Alert.alert('Error', 'User ID not found. Please log in again.');
+          return;
+        }
       
         const messageData: any = {
           content: newMessage.trim(),

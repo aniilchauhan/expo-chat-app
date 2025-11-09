@@ -67,6 +67,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.Content title="Chats" />
+        <Appbar.Action icon="magnify" onPress={() => navigation.navigate('UserSearch')} />
         <Appbar.Action icon="account-group" onPress={() => navigation.navigate('GroupCreate')} />
         <Appbar.Action icon="logout" onPress={logout} />
       </Appbar.Header>

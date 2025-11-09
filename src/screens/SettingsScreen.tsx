@@ -12,8 +12,10 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const [profilePicVisible, setProfilePicVisible] = useState(true);
   const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
+  const [searchable, setSearchable] = useState(true);
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
   const [storageInfo, setStorageInfo] = useState({ totalSize: 0, itemCount: 0 });
+  const [isUpdatingSearchable, setIsUpdatingSearchable] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -30,6 +32,7 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
         setProfilePicVisible(settings.profilePicVisible ?? true);
         setReadReceiptsEnabled(settings.readReceiptsEnabled ?? true);
         setPushNotifications(settings.pushNotifications ?? true);
+        setSearchable(settings.searchable ?? true);
       }
     } catch (error) {
       console.log('Failed to load settings');
@@ -71,6 +74,23 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to save settings');
+    }
+  };
+
+  const handleSearchableToggle = async (value: boolean) => {
+    setIsUpdatingSearchable(true);
+    try {
+      const response = await usersAPI.updateSearchableStatus(value);
+      if (response.success) {
+        setSearchable(value);
+        Alert.alert('Success', `You are now ${value ? 'searchable' : 'not searchable'} by User ID`);
+      } else {
+        Alert.alert('Error', response.message || 'Failed to update searchable status');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update searchable status');
+    } finally {
+      setIsUpdatingSearchable(false);
     }
   };
 
@@ -206,6 +226,21 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
             thumbColor={readReceiptsEnabled ? colors.primary : colors.textSecondary}
           />
         </View>
+        <View style={styles.settingRow}>
+          <View style={styles.settingTextContainer}>
+            <Text style={[styles.settingText, { color: colors.text }]}>Allow User ID Search</Text>
+            <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+              Let others find you by your User ID
+            </Text>
+          </View>
+          <Switch
+            value={searchable}
+            onValueChange={handleSearchableToggle}
+            disabled={isUpdatingSearchable}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={searchable ? colors.primary : colors.textSecondary}
+          />
+        </View>
         <Button mode="contained" onPress={saveSettings} style={[styles.saveButton, { backgroundColor: colors.primary }]}>
           Save Privacy Settings
         </Button>
@@ -327,6 +362,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 8 },
   settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   settingText: { fontSize: 16 },
+  settingTextContainer: { flex: 1, marginRight: 12 },
+  settingDescription: { fontSize: 12, marginTop: 2 },
   saveButton: { margin: 16, marginTop: 8 },
   emptyText: { textAlign: 'center', padding: 16, fontStyle: 'italic' },
   blockedUserRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
