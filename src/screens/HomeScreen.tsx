@@ -97,11 +97,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Appbar.Header>
-        <Appbar.Content title="Chats" />
-        <Appbar.Action icon="magnify" onPress={() => navigation.navigate('UserSearch')} />
-        <Appbar.Action icon="account-group" onPress={() => navigation.navigate('GroupCreate')} />
-        <Appbar.Action icon="logout" onPress={logout} />
+      <Appbar.Header style={{ backgroundColor: colors.background }}>
+        <Appbar.Content title="Chats" titleStyle={{ color: colors.text }} />
+        <Appbar.Action icon="magnify" onPress={() => navigation.navigate('UserSearch')} color={colors.text} />
+        <Appbar.Action icon="account-group" onPress={() => navigation.navigate('GroupCreate')} color={colors.text} />
+        <Appbar.Action icon="logout" onPress={logout} color={colors.text} />
       </Appbar.Header>
       {isLoading ? (
         <ActivityIndicator style={styles.loader} />

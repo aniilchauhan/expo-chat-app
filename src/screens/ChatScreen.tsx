@@ -1068,7 +1068,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-       <Appbar.Header style={{ backgroundColor: colors.surface }}>
+       <Appbar.Header style={{ backgroundColor: colors.background }}>
           <Appbar.BackAction onPress={() => navigation.goBack()} color={colors.text} />
           <Avatar.Text
             size={40}
@@ -1150,9 +1150,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
             }
           />
 
-          <View style={[styles.messageInputContainer, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
+          <View style={[styles.messageInputContainer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
             {(replyingTo || editingMessage) && (
-              <View style={[styles.replyBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+              <View style={[styles.replyBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <View style={styles.replyBarContent}>
                   <Text style={[styles.replyLabel, { color: colors.primary }]}>
                     {editingMessage ? 'Edit message' : `Reply to ${replyingTo?.sender?.firstName || 'User'}`}
@@ -1183,7 +1183,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
               <TextInput
                 style={[styles.textInput, { 
                   borderColor: colors.border, 
-                  backgroundColor: colors.surface,
+                  backgroundColor: colors.background,
                   color: colors.text 
                 }]}
                 value={newMessage}
