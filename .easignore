@@ -1,0 +1,10 @@
+android/.gradle
+android/build
+android/app/build
+.gradle
+node_modules
+.expo
+.expo-shared
+*.log
+build-log.txt
+build-preview.bat
