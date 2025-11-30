@@ -46,7 +46,8 @@
     "web": {},
     "sdkVersion": "53.0.0",
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-localization"
     ],
     "extra": {
       "eas": {
