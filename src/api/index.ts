@@ -50,6 +50,40 @@ export const authAPI = {
     return handleResponse(response);
   },
 
+  // Biometric authentication
+  async enableBiometric(deviceId: string, biometricType: string) {
+    const response = await fetch(`${API_BASE_URL}/api/biometric/enable`, {
+      method: "POST",
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ deviceId, biometricType }),
+    });
+    return handleResponse(response);
+  },
+
+  async disableBiometric() {
+    const response = await fetch(`${API_BASE_URL}/api/biometric/disable`, {
+      method: "POST",
+      headers: await getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async getBiometricStatus() {
+    const response = await fetch(`${API_BASE_URL}/api/biometric/status`, {
+      headers: await getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async verifyBiometric(deviceId: string) {
+    const response = await fetch(`${API_BASE_URL}/api/biometric/verify`, {
+      method: "POST",
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ deviceId }),
+    });
+    return handleResponse(response);
+  },
+
   async logout() {
     const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
       method: "POST",

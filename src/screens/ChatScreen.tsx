@@ -35,6 +35,8 @@ import * as Location from 'expo-location';
 import * as Contacts from 'expo-contacts';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio, Video, ResizeMode } from 'expo-av';
+import EncryptionService from '../services/encryption/EncryptionService';
+import MessageEncryptionManager, { EncryptionProgress } from '../services/encryption/MessageEncryptionManager';
 
 const { width } = Dimensions.get('window');
 
@@ -76,6 +78,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
   const [showMemberManagement, setShowMemberManagement] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [showInviteManagement, setShowInviteManagement] = useState(false);
+  const [encryptionEnabled, setEncryptionEnabled] = useState(false);
+  const [encryptionProgress, setEncryptionProgress] = useState<EncryptionProgress | null>(null);
+  const [isEstablishingEncryption, setIsEstablishingEncryption] = useState(false);
   const messagesEndRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<any>(null);
 
@@ -84,6 +89,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
       loadChatDetails();
       loadAnnouncements();
       initializeSocket();
+      initializeEncryption();
     }
     return () => {
       if (socket) {
@@ -95,6 +101,26 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
       }
     };
   }, [user, chatId]);
+
+  const initializeEncryption = async () => {
+    try {
+      const userId = user?._id || user?.id;
+      if (!userId) return;
+
+      // Initialize encryption service if not already initialized
+      if (!EncryptionService.isInitialized()) {
+        await EncryptionService.initialize(userId);
+      }
+
+      // Enable encryption for this chat
+      setEncryptionEnabled(true);
+      console.log('[ChatScreen] Encryption initialized');
+    } catch (error) {
+      console.error('[ChatScreen] Failed to initialize encryption:', error);
+      // Don't block the chat if encryption fails
+      setEncryptionEnabled(false);
+    }
+  };
 
   const initializeSocket = () => {
     setIsConnecting(true);
@@ -115,9 +141,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
       setIsConnecting(true);
     });
 
-        newSocket.on('newMessage', (message: Message) => {
+        newSocket.on('newMessage', async (message: Message) => {
       if (message.chatId === chatId) {
-        setMessages(prev => [...prev, message]);
+        // Check if message is encrypted
+        if (message.encrypted && encryptionEnabled) {
+          try {
+            // Decrypt the message
+            const decryptedMessage = await handleIncomingEncryptedMessage(message);
+            setMessages(prev => [...prev, decryptedMessage]);
+          } catch (error) {
+            console.error('[ChatScreen] Failed to decrypt incoming message:', error);
+            // Add message with decryption error indicator
+            setMessages(prev => [...prev, { ...message, decryptionFailed: true }]);
+          }
+        } else {
+          setMessages(prev => [...prev, message]);
+        }
         setTimeout(() => messagesEndRef.current?.scrollToEnd({ animated: true }), 100);
       }
     });
@@ -240,6 +279,89 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
     }
   };
 
+  const handleIncomingEncryptedMessage = async (message: Message, retryCount: number = 0): Promise<Message> => {
+    try {
+      console.log('[ChatScreen] Decrypting incoming message:', message._id);
+
+      // Get the encrypted content for this device
+      const currentDeviceId = EncryptionService.getDeviceId();
+      if (!currentDeviceId) {
+        throw new Error('Device ID not found');
+      }
+
+      // Find the encrypted content for this device
+      const recipientDevice = (message as any).recipientDevices?.find(
+        (rd: any) => rd.deviceId === currentDeviceId
+      );
+
+      if (!recipientDevice) {
+        throw new Error('No encrypted content found for this device');
+      }
+
+      // Convert base64 encrypted content to EncryptedMessage format
+      const encryptedMessage = {
+        type: recipientDevice.messageType || 'message',
+        registrationId: recipientDevice.registrationId || 0,
+        body: new Uint8Array(atob(recipientDevice.encryptedContent).split('').map(c => c.charCodeAt(0))),
+      };
+
+      // Decrypt the message
+      const senderId = message.sender._id || message.sender.id;
+      const senderDeviceId = (message as any).senderDeviceId || 'default';
+
+      if (!senderId) {
+        throw new Error('Sender ID not found');
+      }
+
+      try {
+        const decryptedContent = await EncryptionService.decryptMessage(
+          senderId,
+          senderDeviceId,
+          encryptedMessage
+        );
+
+        console.log('[ChatScreen] Message decrypted successfully');
+
+        // Return the message with decrypted content
+        return {
+          ...message,
+          content: decryptedContent,
+          encrypted: true,
+        };
+      } catch (decryptError) {
+        console.error('[ChatScreen] Decryption failed:', decryptError);
+
+        // Attempt automatic session re-establishment on first failure
+        if (retryCount === 0 && encryptedMessage.type === 'prekey') {
+          console.log('[ChatScreen] Attempting automatic session re-establishment...');
+
+          try {
+            if (!senderId) {
+              throw new Error('Sender ID not found');
+            }
+            
+            // Fetch new key bundle and re-establish session
+            const keyBundle = await EncryptionService.fetchKeyBundle(senderId, senderDeviceId);
+            await EncryptionService.createSession(senderId, senderDeviceId, keyBundle);
+
+            console.log('[ChatScreen] Session re-established, retrying decryption...');
+
+            // Retry decryption with new session
+            return await handleIncomingEncryptedMessage(message, retryCount + 1);
+          } catch (recoveryError) {
+            console.error('[ChatScreen] Session recovery failed:', recoveryError);
+            throw decryptError; // Throw original decryption error
+          }
+        }
+
+        throw decryptError;
+      }
+    } catch (error) {
+      console.error('[ChatScreen] Failed to decrypt message:', error);
+      throw error;
+    }
+  };
+
   const handleVoiceMessageComplete = async (voiceMessage: VoiceMessage) => {
     try {
       // Create a message with the voice message
@@ -335,28 +457,86 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           Alert.alert('Error', 'User ID not found. Please log in again.');
           return;
         }
-      
-        const messageData: any = {
-          content: newMessage.trim(),
-          senderId: senderId,
-        };
-      
-        console.log('🔍 Frontend: Message data being sent:', messageData); 
 
-        if (replyingTo) {
-          messageData.replyTo = replyingTo._id;
-        }
+        // Check if encryption is enabled
+        if (encryptionEnabled && chat) {
+          // Show establishing connection state
+          setIsEstablishingEncryption(true);
 
-                        const data = await messagesAPI.sendMessage(chatId, messageData);
-        const newMsg = data.message || data;
-        
-        setMessages(prev => [...prev, newMsg]);
-        
-        if (socket) {
-          socket.emit('sendMessage', {
+          // Get recipient IDs from chat participants
+          const recipientIds = chat.participants
+            ?.map(p => p.userId?._id || p.userId?.id || p.userId)
+            .filter(id => id !== senderId) as string[];
+
+          if (!recipientIds || recipientIds.length === 0) {
+            Alert.alert('Error', 'No recipients found for encrypted message.');
+            setIsEstablishingEncryption(false);
+            return;
+          }
+
+          // Send encrypted message
+          const result = await MessageEncryptionManager.sendEncryptedMessage(
+            chatId,
+            recipientIds,
+            newMessage.trim(),
+            'text',
+            {
+              replyTo: replyingTo?._id,
+            }
+          );
+
+          setIsEstablishingEncryption(false);
+
+          if (!result.success) {
+            Alert.alert('Encryption Error', result.error || 'Failed to send encrypted message.');
+            return;
+          }
+
+          // Fetch the sent message from backend to display
+          // For now, create a temporary message object
+          const tempMessage: Message = {
+            _id: result.messageId || Date.now().toString(),
             chatId: chatId,
-            message: newMsg
-          });
+            sender: user as any,
+            content: newMessage.trim(),
+            messageType: 'text',
+            encrypted: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          setMessages(prev => [...prev, tempMessage]);
+
+          if (socket) {
+            socket.emit('sendMessage', {
+              chatId: chatId,
+              message: tempMessage
+            });
+          }
+        } else {
+          // Send unencrypted message (legacy flow)
+          const messageData: any = {
+            content: newMessage.trim(),
+            senderId: senderId,
+          };
+        
+          console.log('🔍 Frontend: Message data being sent:', messageData); 
+
+          if (replyingTo) {
+            messageData.replyTo = replyingTo._id;
+          }
+
+          const data = await messagesAPI.sendMessage(chatId, messageData);
+          const newMsg = data.message || data;
+          
+          setMessages(prev => [...prev, newMsg]);
+          
+          if (socket) {
+            socket.emit('sendMessage', {
+              chatId: chatId,
+              message: newMsg
+            });
+          }
         }
         
         setTimeout(() => messagesEndRef.current?.scrollToEnd({ animated: true }), 100);
@@ -366,6 +546,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
       setReplyingTo(null);
     } catch (error) {
       console.error('Error sending message:', error);
+      setIsEstablishingEncryption(false);
       Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
@@ -815,6 +996,46 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
     const bubbleColor = isOwn ? colors.primary : colors.surface;
     const textColor = isOwn ? '#fff' : colors.text;
     
+    // Handle decryption failure
+    if ((item as any).decryptionFailed) {
+      return (
+        <View style={[styles.messageBubble, { backgroundColor: colors.error + '20', borderWidth: 1, borderColor: colors.error }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons name="lock-closed" size={20} color={colors.error} />
+            <Text style={[styles.messageText, { color: colors.error, marginLeft: 8, fontWeight: '600' }]}>
+              Unable to decrypt message
+            </Text>
+          </View>
+          <Text style={[styles.messageText, { color: colors.textSecondary, fontSize: 14 }]}>
+            This message was encrypted but could not be decrypted. It may have been sent from an unverified device.
+          </Text>
+          <TouchableOpacity 
+            style={{ 
+              marginTop: 12, 
+              paddingVertical: 8, 
+              paddingHorizontal: 16, 
+              backgroundColor: colors.primary, 
+              borderRadius: 8,
+              alignSelf: 'flex-start'
+            }}
+            onPress={async () => {
+              // Retry decryption
+              try {
+                const decryptedMessage = await handleIncomingEncryptedMessage(item);
+                setMessages(prev => prev.map(msg => 
+                  msg._id === item._id ? decryptedMessage : msg
+                ));
+              } catch (error) {
+                Alert.alert('Decryption Failed', 'Unable to decrypt this message. Please contact the sender.');
+              }
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    
     switch (item.messageType) {
       case 'location':
         try {
@@ -986,6 +1207,40 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
               <Text style={[styles.editedLabel, { color: colors.textSecondary }]}>edited</Text>
             )}
             
+            {/* Encryption status badge */}
+            {item.encrypted && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 6 }}>
+                <Ionicons 
+                  name="lock-closed" 
+                  size={10} 
+                  color={isOwn ? '#fff' : colors.primary} 
+                />
+                <Text style={[
+                  styles.editedLabel, 
+                  { color: isOwn ? '#fff' : colors.primary, marginLeft: 2 }
+                ]}>
+                  encrypted
+                </Text>
+              </View>
+            )}
+            
+            {/* Decryption failed indicator */}
+            {(item as any).decryptionFailed && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 6 }}>
+                <Ionicons 
+                  name="warning" 
+                  size={10} 
+                  color={colors.error} 
+                />
+                <Text style={[
+                  styles.editedLabel, 
+                  { color: colors.error, marginLeft: 2 }
+                ]}>
+                  Unable to decrypt
+                </Text>
+              </View>
+            )}
+            
             {isOwn && (
               <View style={styles.messageStatus}>
                 <Ionicons 
@@ -1078,11 +1333,31 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
             }
             style={{ marginRight: 8 }}
           />
-          <Appbar.Content 
-            title={chatName} 
-            subtitle={presenceLabel}
-            titleStyle={{ fontSize: 16, fontWeight: '600', color: colors.text }}
-          />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
+                {chatName}
+              </Text>
+              {encryptionEnabled && (
+                <Ionicons 
+                  name="lock-closed" 
+                  size={14} 
+                  color={colors.primary} 
+                  style={{ marginLeft: 6 }}
+                />
+              )}
+            </View>
+            {presenceLabel && (
+              <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                {presenceLabel}
+              </Text>
+            )}
+            {isEstablishingEncryption && (
+              <Text style={{ fontSize: 11, color: colors.primary, fontStyle: 'italic' }}>
+                Establishing secure connection...
+              </Text>
+            )}
+          </View>
           {chat.type === 'group' && (
             <Appbar.Action 
               icon="account-group" 

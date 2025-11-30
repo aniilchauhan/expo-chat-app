@@ -5,25 +5,32 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#8B5CF6"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.chatapp.mobile",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow camera access to make video calls",
         "NSMicrophoneUsageDescription": "Allow microphone access to make voice and video calls",
-        "NSPhotoLibraryUsageDescription": "Allow photo library access to share images"
+        "NSPhotoLibraryUsageDescription": "Allow photo library access to share images",
+        "NSContactsUsageDescription": "Allow contacts access to find friends on ChatApp"
       }
     },
     "android": {
       "package": "com.chatapp.mobile",
       "versionCode": 1,
       "backgroundColor": "#FFFFFF",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#8B5CF6"
+      },
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",

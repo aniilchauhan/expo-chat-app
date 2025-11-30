@@ -168,6 +168,24 @@ export interface Message {
     lastReplyBy?: string;
   };
   voiceMessageId?: string; // Added for voice messages
+  // Encryption fields
+  encrypted?: boolean;
+  encryptionVersion?: string;
+  senderDeviceId?: string;
+  recipientDevices?: Array<{
+    userId: string;
+    deviceId: string;
+    encryptedContent?: string;
+    encryptedMediaKey?: string;
+    messageType?: string;
+    registrationId?: number;
+    delivered?: boolean;
+    deliveredAt?: string;
+  }>;
+  encryptedMediaKey?: string;
+  mediaIv?: string;
+  mediaAuthTag?: string;
+  decryptionFailed?: boolean; // Client-side flag for decryption errors
   createdAt: string;
   updatedAt: string;
 }
