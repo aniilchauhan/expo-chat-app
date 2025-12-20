@@ -33,6 +33,9 @@ const AuthScreen: React.FC = () => {
     lastName: '',
   });
 
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+
   const handleLogin = async () => {
     if (!loginForm.email || !loginForm.password) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -50,8 +53,8 @@ const AuthScreen: React.FC = () => {
   };
 
   const handleRegister = async () => {
-    if (!registerForm.email || !registerForm.password || !registerForm.username || 
-        !registerForm.firstName || !registerForm.lastName) {
+    if (!registerForm.email || !registerForm.password || !registerForm.username ||
+      !registerForm.firstName || !registerForm.lastName) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -116,7 +119,13 @@ const AuthScreen: React.FC = () => {
                       onChangeText={(text) =>
                         setLoginForm({ ...loginForm, password: text })
                       }
-                      secureTextEntry
+                      secureTextEntry={!showLoginPassword}
+                      right={
+                        <TextInput.Icon
+                          icon={showLoginPassword ? "eye-off" : "eye"}
+                          onPress={() => setShowLoginPassword(!showLoginPassword)}
+                        />
+                      }
                       style={styles.input}
                     />
                     <Button
@@ -174,7 +183,13 @@ const AuthScreen: React.FC = () => {
                       onChangeText={(text) =>
                         setRegisterForm({ ...registerForm, password: text })
                       }
-                      secureTextEntry
+                      secureTextEntry={!showRegisterPassword}
+                      right={
+                        <TextInput.Icon
+                          icon={showRegisterPassword ? "eye-off" : "eye"}
+                          onPress={() => setShowRegisterPassword(!showRegisterPassword)}
+                        />
+                      }
                       style={styles.input}
                     />
                     <Button

@@ -26,12 +26,19 @@ const handleResponse = async (response: Response) => {
 // Authentication API
 export const authAPI = {
   async login(email: string, password: string) {
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    return handleResponse(response);
+    console.log('API: Sending login request to:', `${API_BASE_URL}/api/auth/login`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      console.log('API: Login response status:', response.status);
+      return handleResponse(response);
+    } catch (error) {
+      console.error('API: Login fetch error:', error);
+      throw error;
+    }
   },
 
   async register(userData: RegisterData) {
@@ -152,35 +159,35 @@ export const usersAPI = {
   async searchUsers(query: string) {
     console.log('🔍 Frontend: Starting user search with query:', query);
     console.log('🔍 Frontend: Search URL:', `${API_BASE_URL}/api/users/search?q=${encodeURIComponent(query)}`);
-    
+
     const response = await fetch(`${API_BASE_URL}/api/users/search?q=${encodeURIComponent(query)}`, {
       headers: await getAuthHeaders(),
     });
-    
+
     const result = await handleResponse(response);
     console.log('🔍 Frontend: User search results:', result);
     console.log('🔍 Frontend: Found', result?.length || 0, 'users');
-    
+
     return result;
   },
 
   async searchUserById(userId: string) {
     console.log('🔍 Frontend: Searching user by ID:', userId);
     console.log('🔍 Frontend: Search URL:', `${API_BASE_URL}/api/users/search/by-id/${encodeURIComponent(userId)}`);
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/users/search/by-id/${encodeURIComponent(userId)}`, {
         headers: await getAuthHeaders(),
       });
-      
+
       console.log('🔍 Frontend: Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Network error" }));
         console.log('🔍 Frontend: Error response:', errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       console.log('🔍 Frontend: Search by ID result:', result);
       return result;
@@ -214,22 +221,22 @@ export const usersAPI = {
   async updateSearchableStatus(searchable: boolean) {
     console.log('🔍 Frontend: Updating searchable status to:', searchable);
     console.log('🔍 Frontend: API URL:', `${API_BASE_URL}/api/users/settings/privacy`);
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/users/settings/privacy`, {
         method: "PATCH",
         headers: await getAuthHeaders(),
         body: JSON.stringify({ searchable }),
       });
-      
+
       console.log('🔍 Frontend: Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Network error" }));
         console.log('🔍 Frontend: Error response:', errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       console.log('🔍 Frontend: Update searchable status result:', result);
       return result;
@@ -282,20 +289,20 @@ export const chatsAPI = {
   },
 
   async getChatById(chatId: string) {
-    
+
     try {
       const headers = await getAuthHeaders();
-      
+
       const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
         headers,
       });
-      
-      
+
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       const result = await response.json();
       console.log('🔍 Frontend: getChatById result:', result);
       return result;
@@ -322,27 +329,27 @@ export const chatsAPI = {
   async findOrCreateChat(userId: string) {
     console.log('🔍 Frontend: Finding or creating chat with user:', userId);
     console.log('🔍 Frontend: API URL:', `${API_BASE_URL}/api/chats/find-or-create`);
-    
+
     try {
       const headers = await getAuthHeaders();
       console.log('🔍 Frontend: Request headers:', headers);
       console.log('🔍 Frontend: Request body:', JSON.stringify({ userId }));
-      
+
       const response = await fetch(`${API_BASE_URL}/api/chats/find-or-create`, {
         method: "POST",
         headers,
         body: JSON.stringify({ userId }),
       });
-      
+
       console.log('🔍 Frontend: Response status:', response.status);
       console.log('🔍 Frontend: Response ok:', response.ok);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.log('🔍 Frontend: Error response text:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       const result = await response.json();
       console.log('🔍 Frontend: Find or create chat result:', result);
       return result;

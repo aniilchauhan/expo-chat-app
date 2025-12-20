@@ -3,8 +3,10 @@
     "name": "ChatApp",
     "slug": "chat-app",
     "version": "1.0.0",
+    "scheme": "chatapp",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "splash": {
       "resizeMode": "contain",
@@ -44,8 +46,8 @@
       ]
     },
     "web": {},
-    "sdkVersion": "53.0.0",
     "plugins": [
+      "expo-sqlite",
       "expo-font",
       "expo-localization"
     ],

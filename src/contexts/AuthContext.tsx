@@ -38,17 +38,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
+      console.log('Attempting login for:', email);
       const data = await authAPI.login(email, password);
+      console.log('Login response received:', data);
+
       // Backend returns 'accessToken', not 'token'
       const token = data.accessToken || data.token;
       if (!token) {
+        console.error('No token in response:', data);
         throw new Error('No authentication token received');
       }
+
+      console.log('Token found, saving to storage...');
       await AsyncStorage.setItem('authToken', token);
       await AsyncStorage.setItem('userId', data.user.id);
       await AsyncStorage.setItem('user', JSON.stringify(data.user));
+
+      console.log('Setting user state...');
       setUser(data.user);
+      console.log('Login complete');
     } catch (error) {
+      console.error('Login error in context:', error);
       throw error;
     }
   };
